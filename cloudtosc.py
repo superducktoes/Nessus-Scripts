@@ -10,16 +10,12 @@ import time
 import os
 
 #Change these to access key and secret key generated in the users account
-accessKey = ""
-secretKey = ""
+accessKey = "################################################################"
+secretKey = "################################################################"
 
 #No need to change this
 url = "https://cloud.tenable.com/"
 headers = {'X-ApiKeys': 'accessKey=' + str(accessKey) + '; secretKey = ' + str(secretKey) + ';'}
-
-scUrl = ""  #REMOVE LATER. ONLY FOR TESTING
-login = ''
-password = ''
 
 requests.packages.urllib3.disable_warnings()
 
@@ -141,8 +137,6 @@ def getTokenCookie():
     return(cookie,headers)
 
 
-#def addToSC():
-   
 #uploads the scan results
 #set the time based on the original scan time
 #upload the files.
@@ -174,16 +168,34 @@ def uploadResults(cookie,token,historyID,timestampStack):
     #loop through thet history and timestamp to start uploading the files to SecurityCenter
     #right now its just looping through and printing out the content
 
-    for i in timestampStack:
-        print("Setting date to ",i)
-        date = "'" + str(i) + "'"
+    for i in range(len(historyID)):
+
+        date = "'" + str(timestampStack[i]) + "'"
         dateCommand = "date -s %s" % date
+
+        print("Date is set to ===>  ",dateCommand)
+
         os.system(dateCommand)
        
         # This is where the files get uploaded to SecurityCenter
         # /opt/sc/src/tools/parseNessusFile.php
         # parseNessusFile <nessus file location> <repID> <orgID> <userID> <groupID>
-   
+        # /opt/sc/support/bin/php /opt/sc/src/tools/parseNessusFile.php ~/2878 1 1 1 0
+        file = str(historyID[i])
+        uploadString = "./%s 1 1 1 0" % file
+        finalAdd = "/opt/sc/support/bin/php /opt/sc/src/tools/parseNessusFile.php " + uploadString
+       
+        print("Upload command is ====>  ",finalAdd)
+        #runs the command to parse the Nessus files
+        os.system(finalAdd)
+
+        time.sleep(10)
+
+        repoSnapshot = "/opt/sc/support/bin/php /opt/sc/src/tools/takeRepositorySnapshots.php 1 %s" % date
+        os.system(repoSnapshot)
+       
+        os.system("/opt/sc/support/bin/php /opt/sc/src/tools/flushAllVulns.php")
+
         #Run the cleanup again after uploading the files
         os.system(nightlyCleanupCommand)
 
@@ -202,8 +214,8 @@ if __name__ == '__main__':
 
     print("Nessus files finished downloading")
     print("Let's start moving the scan results over to SecurityCenter.")
-    scUsername = input("Enter the SecurityCenter username: ")
-    scPassword = input("Enter the SecurityCenter password: ")
+   
+    input("Files are downloaded. Press ENTER to  start moving them to SecurityCenter ")
    
     cookie,token = getTokenCookie()   
    
