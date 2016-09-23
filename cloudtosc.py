@@ -10,8 +10,8 @@ import time
 import os
 
 #Change these to access key and secret key generated in the users account
-accessKey = "################################################################"
-secretKey = "################################################################"
+accessKey = ""
+secretKey = ""
 
 #No need to change this
 url = "https://cloud.tenable.com/"
@@ -119,30 +119,18 @@ def getTimestamp(historyID,scanChoice):
    
     return timestampStack
 
-#gets the information needed to log into SecurityCenter
-def getTokenCookie():
-    headers = {'Content-type': 'application/json'} #default header for getting token
-    sc = requests.request('post', scUrl+'/rest/token',
-                data=json.dumps({'username':login, 'password':password}),
-                headers=headers,
-                verify=False)
+def getInfo():
    
+    print("\nSome of this information will need to be gathered from SecurityCenter.\n")
+    print("\n <-- In the admin account -->\n")
+    repository = input("ID of the repository to import the results into: ")
+    organization = input("ID of the organization: ")
+    print("\nFrom the security manager account -->\n")
+    userID = input("ID of the user that will be importing the results: ")
+    groupID = input("ID of the group that the user is in: ")
+    print("\n\n")
 
-    cookie = sc.cookies
-
-    token = sc.json()['response']['token']
-    login_header = {'X-SecurityCenter':str(token)}
-    headers.update(login_header)
-
-    return(cookie,headers)
-
-
-#uploads the scan results
-#set the time based on the original scan time
-#upload the files.
-#nightly cleanup
-#set the new time
-#loop through to the next   
+    return repository,organization,userID,groupID
 
 # Uploads the scan results to the SecurityCenter console
 #
@@ -150,30 +138,33 @@ def getTokenCookie():
 #    historyID - stack for ID of the scan files downloaded
 #    timestampStack - stack with the timestamps of each scan launched
 
-def uploadResults(cookie,token,historyID,timestampStack):
+def uploadResults(historyID,timestampStack):
    
-    #gets the length of the stack. used to loop through
-    loopStop = (len(historyID))
-    stopDate = "'" + str(timestampStack[0]) + "'"
+    #gets the first date off the stack
+    startDate = "'" + str(timestampStack[0]) + "'"
 
     #need to run this after each import
     nightlyCleanupCommand = "su - tns -c " + "'" + "/opt/sc/support/bin/php -f /opt/sc/src/tools/nightlyCleanup.php" + "'"
 
-    #sets the date on the local server to the first date on the stack
-    dateCommand = "date -s %s" % stopDate
+    #sets the date on the local server to startDate
+    dateCommand = "date -s %s" % startDate
     os.system(dateCommand)       
     #need to run the nightly cleanup   
     os.system(nightlyCleanupCommand)
 
     #loop through thet history and timestamp to start uploading the files to SecurityCenter
-    #right now its just looping through and printing out the content
+
+    #need this to get the information about where to put the scan results
+    repository,organization,userID,groupID = getInfo()
+
 
     for i in range(len(historyID)):
 
         date = "'" + str(timestampStack[i]) + "'"
         dateCommand = "date -s %s" % date
 
-        print("Date is set to ===>  ",dateCommand)
+#        Don't need this anymore for debugging       
+#        print("Date is set to ===>  ",dateCommand)
 
         os.system(dateCommand)
        
@@ -182,14 +173,20 @@ def uploadResults(cookie,token,historyID,timestampStack):
         # parseNessusFile <nessus file location> <repID> <orgID> <userID> <groupID>
         # /opt/sc/support/bin/php /opt/sc/src/tools/parseNessusFile.php ~/2878 1 1 1 0
         file = str(historyID[i])
-        uploadString = "./%s 1 1 1 0" % file
+
+
+        uploadString = "./%s %s %s %s %s" % (file,repository,organization,userID,groupID)
+
         finalAdd = "/opt/sc/support/bin/php /opt/sc/src/tools/parseNessusFile.php " + uploadString
-       
-        print("Upload command is ====>  ",finalAdd)
+
+#        Don't need this anymore for debugging       
+#        print("Upload command is ====>  ",finalAdd)
+
         #runs the command to parse the Nessus files
         os.system(finalAdd)
 
-        time.sleep(10)
+        #sleep for 5 seconds to let parseNessus run
+        time.sleep(5)
 
         repoSnapshot = "/opt/sc/support/bin/php /opt/sc/src/tools/takeRepositorySnapshots.php 1 %s" % date
         os.system(repoSnapshot)
@@ -217,6 +214,4 @@ if __name__ == '__main__':
    
     input("Files are downloaded. Press ENTER to  start moving them to SecurityCenter ")
    
-    cookie,token = getTokenCookie()   
-   
-    uploadResults(cookie,token,historyID,timestampStack)
+    uploadResults(historyID,timestampStack)
