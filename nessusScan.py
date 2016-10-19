@@ -12,7 +12,7 @@ headers = {'X-ApiKeys': 'accessKey=' + str(accessKey) + '; secretKey = ' + str(s
 requests.packages.urllib3.disable_warnings()
 
 def listPolicies():
-	policies = requests.get(url+"policies/",headers=headers,verify=False)
+	policies = requests.get(url+"policies/",headers=headers,verify=True)
 	listPolicies = policies.json()["policies"]	
 
 	for i in listPolicies:
@@ -60,25 +60,35 @@ class Scan:
 	
 	def displayUuid(self):
 		return self.uuid
-	
+
+	def launchScan(self):
+		scan = {"uuid":self.uuid,
+			"settings": {
+			"name": "api scan",
+			"enabled": "true",
+			"scanner_id":self.scanner,
+			"policy_id":self.policy,
+			"text_targets":self.hosts,
+			"launch_now":"true"}
+			}
+		scanData = requests.post(url+"scans",json=scan,headers=headers,verify=True)
+		
+
 if __name__ == '__main__':
 
-	if(len(sys.argv) < 3 or len(sys.argv) > 4):
-		ipsToScan = input("Enter an IP or range to scan")
-	
+#	if(len(sys.argv) < 3 or len(sys.argv) > 4):
+	ipsToScan = input("Enter the ip/ip's to scan: ")
 		#list all of the available scan policies
-		policyChoice = listPolicies()
-		scannerChoice = listScanners()	
-		scanUuid = templateUuid(policyChoice)
+	policyChoice = listPolicies()
+	scannerChoice = listScanners()	
+	scanUuid = templateUuid(policyChoice)
 		
-		print("UUID :",scanUuid)	
+	print("UUID :",scanUuid)	
 		#Create the scan
-		newScan = Scan(policyChoice,scannerChoice,ipsToScan)	
-	
-		print("Using scanner: ", newScan.displayScanner())
-		print("Using UUID: ",newScan.displayUuid())
-			
-	else:
-		newScan = Scan(str(sys.argv[0]),str(sys.argv[1]),str(sys.argv[2]))
-		print("Using scanner: ", newScan.displayScanner())
-		
+	newScan = Scan(policyChoice,scannerChoice,ipsToScan)	
+	print("Using scanner: ", newScan.displayScanner())
+	print("Using UUID: ",newScan.displayUuid())
+	newScan.launchScan()			
+#	else:
+#		newScan = Scan(str(sys.argv[0]),str(sys.argv[1]),str(sys.argv[2]))
+#		print("Using scanner: ", newScan.displayScanner())
