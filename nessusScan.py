@@ -1,6 +1,7 @@
 import json
 import requests
 import sys #used for command line arguments
+import time
 
 #replace these with the keys for the account used for scanning
 accessKey = ""
@@ -40,6 +41,19 @@ def listScanners():
 	scannerChoice = input("Enter the ID of the scanner to be used: ")
 
 	return scannerChoice
+
+def createScanClass(policyChoice,ScannerChoice,ipsToScan):
+	newScan = Scan(policyChoice,scannerChoice,ipsToScan)
+	runningUUID = newScan.launchScan()
+	newScan.updateRunningUUID(runningUUID)
+
+	#loops to keep checking if the scan is still running or not
+	while(newScan.scanStatus(runningUUID)):
+		time.sleep(30) #check every 30 seconds
+		if(newScan.scanStatus(runningUUID) == False):
+			print("scan completed")
+		else:
+			print("scan still running")	
 
 # Scan class. takes in the policy id, scanner id of the scanner to use, and the ips to scan
 #
@@ -99,25 +113,32 @@ class Scan:
 		#return the UUID of the scan launched
 		return runningUUID
 
-	#checks whether a scan is running or not
-	def checkScanStatus(self):
-		scanStatus = True
-		#GET /scans/{scan_id}		
-		return scanStatus
-	
+        #def scanStatus() - takes the running UUID and reports on whether or not the scan is completed.
+	def scanStatus(seld,runningUUID):
+		#GET /scans/{scan_id}
+		runningStatus = requests.get(url+"scans/"+str(runningUUID),headers=headers,verify=True)
+		completed = json.loads(runningStatus.text)
+		completed = completed["info"]
+		
+		if(completed["status"] == "completed"):
+			return False
+		else:
+			return True
+		
+                
 if __name__ == '__main__':
-	
-	if((len(sys.argv) != 4) and (sys.argv[1] != "help")):
+	running = True
+
+	if((len(sys.argv) != 4)):
 		ipsToScan = input("Enter the ip/ip's to scan: ")
-		#list all of the available scan policies
+                #list all of the available scan policies
 		policyChoice = listPolicies()
 		scannerChoice = listScanners()	
 		scanUuid = templateUuid(policyChoice)
-		#Create the scan
-		newScan = Scan(policyChoice,scannerChoice,ipsToScan)	
-		runningUUID = newScan.launchScan()		
-		newScan.updateRunningUUID(runningUUID)
-	#displays infomration about command line arguments	
+                #Create the scan
+		createScanClass(policyChoice,scannerChoice,ipsToScan)	
+	
+        #displays infomration about command line arguments	
 	elif(sys.argv[1] == "help"):
 		print("arg1 - Scan policy ID")
 		print("arg2 - Scanner choice ID")
@@ -129,6 +150,4 @@ if __name__ == '__main__':
 		policyChoice = sys.argv[1]
 		scannerChoice = sys.argv[2]
 		ipsToScan = sys.argv[3]
-		newScan = Scan(policyChoice,scannerChoice,ipsToScan)
-		runningUUID = newScan.launchScan()		
-		newScan.updateRunningUUID(runningUUID)
+		crateScanClass(policychoice,scannerChoice,ipsToScan)
